@@ -1,11 +1,16 @@
 #include "QtLogFilter.h"
 
 #include <qfile.h>
+#include <qthread.h>
+#include <qdatetime.h>
+#include <qdebug.h>
 
 #include "SmoothScrollbar.h"
 
 #include "dialog/SettingDlg.h"
 #include "dialog/FilterConfigDlg.h"
+
+#include "bean/LogData.h"
 
 QtLogFilter::QtLogFilter(QWidget *parent)
     : ShadowWidget(parent)
@@ -36,6 +41,20 @@ QtLogFilter::QtLogFilter(QWidget *parent)
     QByteArray data = file.readAll();
     file.close();
     ui.textBrowser->setHtml(data);
+
+    LogData d;
+    d.level = LEVEL_DEBUG;
+    d.log = "custom data";
+    d.threadName = "test thread";
+    d.threadId = QThread::currentThreadId();
+    d.time = QDateTime::currentMSecsSinceEpoch();
+    auto vard = QVariant::fromValue(d);
+    auto bytes = vard.toString();
+    if (!bytes.isNull()) {
+        auto oth = QVariant::fromValue(bytes);
+        auto logd = oth.value<LogData>();
+        qDebug() << oth;
+    }
 }
 
 void QtLogFilter::showEvent(QShowEvent*) {

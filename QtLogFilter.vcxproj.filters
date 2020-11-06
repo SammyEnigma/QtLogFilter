@@ -31,6 +31,18 @@
     <Filter Include="Source Files\dialog">
       <UniqueIdentifier>{b85891e7-cd76-469e-a034-2506ded89bcf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\bean">
+      <UniqueIdentifier>{c8e0b40d-0650-4e9b-81e0-f59303f75e09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\bean">
+      <UniqueIdentifier>{fc3bc5d2-4a24-4361-bf3a-a85de9f9ceeb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\receiver">
+      <UniqueIdentifier>{c2d9359d-761b-4855-bb5d-b8dd944885b9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\receiver">
+      <UniqueIdentifier>{b14c5b18-bca3-40b0-9ae2-07038fb2d7a2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtLogFilter.qrc">
@@ -58,6 +70,9 @@
     </ClCompile>
     <ClCompile Include="dialog\FilterConfigDlg.cpp">
       <Filter>Source Files\dialog</Filter>
+    </ClCompile>
+    <ClCompile Include="receiver\LogReceiver.cpp">
+      <Filter>Source Files\receiver</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -87,10 +102,21 @@
     <ClInclude Include="dialog\FilterConfigDlg.h">
       <Filter>Header Files\dialog</Filter>
     </ClInclude>
+    <ClInclude Include="bean\LogData.h">
+      <Filter>Header Files\bean</Filter>
+    </ClInclude>
+    <ClInclude Include="bean\ClientData.h">
+      <Filter>Header Files\bean</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="style.qss">
       <Filter>Resource Files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="receiver\LogReceiver.h">
+      <Filter>Header Files\receiver</Filter>
+    </QtMoc>
   </ItemGroup>
 </Project>
