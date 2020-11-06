@@ -1,4 +1,9 @@
 <RCC>
-    <qresource prefix="QtLogFilter">
+    <qresource prefix="/QtLogFilter">
+        <file>resource/btn_close.png</file>
+        <file>resource/drop_down.png</file>
+        <file>resource/setting.png</file>
+        <file>resource/add.png</file>
+        <file>resource/clear.png</file>
     </qresource>
 </RCC>
