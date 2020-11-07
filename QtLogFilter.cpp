@@ -10,8 +10,6 @@
 #include "dialog/SettingDlg.h"
 #include "dialog/FilterConfigDlg.h"
 
-#include "bean/LogData.h"
-
 QtLogFilter::QtLogFilter(QWidget *parent)
     : ShadowWidget(parent)
 {
@@ -21,8 +19,6 @@ QtLogFilter::QtLogFilter(QWidget *parent)
 	setBorderRadius(4);
 	setDraggableTitleHeight(40);
     setupUi(ui);
-
-    //ui.comboBox->addItems(getLocalIps());
 
     connect(ui.btn_close, &QPushButton::clicked, this, &QWidget::close);
     connect(ui.btn_setting, &QPushButton::clicked, [&] {
@@ -36,28 +32,43 @@ QtLogFilter::QtLogFilter(QWidget *parent)
 
     ui.textBrowser->setVerticalScrollBar(new SmoothScrollbar(this));
 
-    QFile file("test.txt");
-    file.open(QIODevice::ReadOnly);
-    QByteArray data = file.readAll();
-    file.close();
-    ui.textBrowser->setHtml(data);
+    logReceiver = new LogReceiver;
+    connect(logReceiver, &LogReceiver::clientClosed, this, [&](ConnectData data) {
 
-    LogData d;
-    d.level = LEVEL_DEBUG;
-    d.log = "custom data";
-    d.threadName = "test thread";
-    d.threadId = QThread::currentThreadId();
-    d.time = QDateTime::currentMSecsSinceEpoch();
-    auto vard = QVariant::fromValue(d);
-    auto bytes = vard.toString();
-    if (!bytes.isNull()) {
-        auto oth = QVariant::fromValue(bytes);
-        auto logd = oth.value<LogData>();
-        qDebug() << oth;
-    }
+    });
+    connect(logReceiver, &LogReceiver::clientConnneted, this, [&](ConnectData data) {
+
+    });
+    connect(logReceiver, &LogReceiver::clientGotLog, this, &QtLogFilter::showLog);
+
+    logReceiver->validator = [&](const ClientData& clientData, const LogData& logData) {
+
+        return true;
+    };
+
+
+    configLoader = new ConfigLoader(this);
+    logReceiver->listen(configLoader->getAddress(), configLoader->getPort());
 }
 
 void QtLogFilter::showEvent(QShowEvent*) {
 	move(QCursor::pos());
+}
+
+void QtLogFilter::showLog(LogData data) {
+    switch (data.level) {
+    case LEVEL_DEBUG:
+        ui.textBrowser->setTextColor(Qt::white);
+        break;
+    case LEVEL_WARNING:
+        ui.textBrowser->setTextColor(Qt::yellow);
+        break;
+    case LEVEL_ERROR:
+        ui.textBrowser->setTextColor(Qt::red);
+        break;
+    default:
+        break;
+    }
+    ui.textBrowser->append(data.toString());
 }
 

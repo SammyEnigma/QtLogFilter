@@ -43,6 +43,12 @@
     <Filter Include="Header Files\receiver">
       <UniqueIdentifier>{b14c5b18-bca3-40b0-9ae2-07038fb2d7a2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\config">
+      <UniqueIdentifier>{40412dcf-299b-438a-8a48-85b45edf1b8b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\config">
+      <UniqueIdentifier>{9fe62aa9-177e-423f-b37d-964e0cd4df4d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtLogFilter.qrc">
@@ -73,6 +79,9 @@
     </ClCompile>
     <ClCompile Include="receiver\LogReceiver.cpp">
       <Filter>Source Files\receiver</Filter>
+    </ClCompile>
+    <ClCompile Include="config\ConfigLoader.cpp">
+      <Filter>Source Files\config</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -107,6 +116,9 @@
     </ClInclude>
     <ClInclude Include="bean\ClientData.h">
       <Filter>Header Files\bean</Filter>
+    </ClInclude>
+    <ClInclude Include="config\ConfigLoader.h">
+      <Filter>Header Files\config</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

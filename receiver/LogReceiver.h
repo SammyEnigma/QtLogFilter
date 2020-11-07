@@ -5,19 +5,30 @@
 #include "../bean/LogData.h"
 #include "../bean/ClientData.h"
 
+#include <functional>
+#include <qhostinfo.h>
+
 class LogReceiver : public QObject {
     Q_OBJECT
 
 public:
-    LogReceiver(QObject* parent);
+    LogReceiver();
+    ~LogReceiver();
+
+    void listen(const QHostAddress& address, int port);
+
+    std::function<bool(const ClientData&, const LogData&)> validator;
 
 signals:
-    void clientGotErr(ConnectData, QString);
     void clientClosed(ConnectData);
+    void clientConnneted(ConnectData);
+    void clientGotLog(LogData data);
 
 private:
     QTcpServer* tcpServer;
     QHash<QTcpSocket*, ClientData> clients;
+    QHash<ConnectData, ClientData> deathProcess;
+    bool waitForClose;
 
 private slots:
     void acceptNewConnection();
@@ -25,5 +36,6 @@ private slots:
 private:
     void addNewClient(QTcpSocket* client);
     void handleBuffer(ClientData& clientData);
+    void tryProcessInfo(const QByteArray& data, ClientData& clientData);
 };
 
