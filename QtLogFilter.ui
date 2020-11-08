@@ -114,7 +114,7 @@ background:transparent;
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="comboBox">
+      <widget class="QComboBox" name="box_process">
        <property name="minimumSize">
         <size>
          <width>160</width>
@@ -131,7 +131,7 @@ background:transparent;
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="comboBox_4">
+      <widget class="QComboBox" name="box_thread">
        <property name="minimumSize">
         <size>
          <width>160</width>
@@ -148,7 +148,7 @@ background:transparent;
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="comboBox_2">
+      <widget class="QComboBox" name="box_level">
        <property name="minimumSize">
         <size>
          <width>68</width>
@@ -194,7 +194,7 @@ background:transparent;
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="lineEdit"/>
+      <widget class="QLineEdit" name="filter_str"/>
      </item>
      <item>
       <widget class="QCheckBox" name="checkBox">
@@ -236,7 +236,7 @@ background:transparent;
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="comboBox_3">
+      <widget class="QComboBox" name="box_filters">
        <property name="minimumSize">
         <size>
          <width>140</width>

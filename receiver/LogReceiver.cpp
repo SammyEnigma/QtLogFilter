@@ -6,18 +6,10 @@
 #include <qcoreapplication.h>
 #include <qdebug.h>
 
-inline bool operator==(const ConnectData& e1, const ConnectData& e2) {
-    return e1.processName == e2.processName
-        && e1.processId == e2.processId;
-}
-
-inline uint qHash(const ConnectData& key, uint seed) {
-    return qHash(key.processName, seed) ^ key.processId;
-}
-
 LogReceiver::LogReceiver() 
     : QObject(nullptr)
     , validator(nullptr)
+    , getNewThreadHandler(nullptr)
     , waitForClose(false)
 {
     tcpServer = new QTcpServer(this);
@@ -41,6 +33,42 @@ void LogReceiver::listen(const QHostAddress& address, int port) {
     tcpServer->listen(address, port);
 }
 
+void LogReceiver::reselectProcess(const ConnectData& data, bool death) {
+    auto clientData = getClient(data, death);
+    if (clientData != nullptr) {
+        for (const auto& threadName : clientData->savedThreads) {
+            getNewThreadHandler(*clientData, threadName);
+        }
+        for (const auto& log : clientData->data) {
+            emit clientGotLog(log);
+        }
+    }
+}
+
+void LogReceiver::reloadProcessLog(const ConnectData& data, bool death) {
+    auto clientData = getClient(data, death);
+    if (clientData != nullptr) {
+        for (const auto& log : clientData->data) {
+            emit clientGotLog(log);
+        }
+    }
+}
+
+ClientData* LogReceiver::getClient(const ConnectData& data, bool death) {
+    ClientData* clientData = nullptr;
+    if (death) {
+        clientData = &deathProcess[data];
+    } else {
+        for (auto& d : clients) {
+            if (d.info == data) {
+                clientData = &d;
+                break;
+            }
+        }
+    }
+    return clientData;
+}
+
 void LogReceiver::addNewClient(QTcpSocket* client) {
     clients.insert(client, {});
     connect(client, qOverload<QAbstractSocket::SocketError>(&QAbstractSocket::error), [&, client] (QAbstractSocket::SocketError e) {
@@ -53,9 +81,12 @@ void LogReceiver::addNewClient(QTcpSocket* client) {
         data.threadId = clientData.info.processId;
         data.level = LEVEL_ERROR;
         data.time = QDateTime::currentMSecsSinceEpoch();
-        data.log = QStringLiteral("进程连接已断开！");
+        data.log = QStringLiteral("进程连接已断开！\n");
+        data.tag = errStr;
         clients[client].data << data;
-        emit clientGotLog(data);
+        if (validator != nullptr && validator(clientData, data)) {
+            emit clientGotLog(data);
+        }
     });
 
     connect(client, &QAbstractSocket::disconnected, [&, client] {
@@ -94,6 +125,12 @@ void LogReceiver::handleBuffer(ClientData& clientData) {
         data.fromTransData(subStr);
         if (!data.log.isEmpty()) {
             clientData.data << data;
+            if (!data.threadName.isEmpty() && !clientData.savedThreads.contains(data.threadName)) {
+                clientData.savedThreads << data.threadName;
+                if (getNewThreadHandler != nullptr) {
+                    getNewThreadHandler(clientData, data.threadName);
+                 }
+            }
             if (validator != nullptr && validator(clientData, data)) {
                 emit clientGotLog(data);
             }

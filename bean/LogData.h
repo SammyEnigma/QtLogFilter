@@ -23,12 +23,22 @@ struct ConnectData {
 };
 Q_DECLARE_METATYPE(ConnectData);
 
+inline bool operator==(const ConnectData& e1, const ConnectData& e2) {
+    return e1.processName == e2.processName
+        && e1.processId == e2.processId;
+}
+
+inline uint qHash(const ConnectData& key, uint seed) {
+    return qHash(key.processName, seed) ^ key.processId;
+}
+
 struct LogData {
     QString threadName;
     int64_t threadId;
     LogLevel level;
     qint64 time;
     QString log;
+    QString tag;
 
     QByteArray toTransData() {
         QJsonObject obj;
@@ -37,6 +47,7 @@ struct LogData {
         obj.insert("c", (int)level);
         obj.insert("d", time);
         obj.insert("e", log);
+        obj.insert("f", tag);
         QJsonDocument doc(obj);
         return doc.toJson(QJsonDocument::Compact).toBase64();
     }
@@ -50,6 +61,7 @@ struct LogData {
             level = (LogLevel)obj.value("c").toInt();
             time = obj.value("d").toVariant().toLongLong();
             log = obj.value("e").toString();
+            tag = obj.value("f").toString();
         }
     }
 
@@ -66,18 +78,19 @@ struct LogData {
         
         switch (level) {
         case LEVEL_DEBUG:
-            logStr += "D/ ";
+            logStr += "D/";
             break;
         case LEVEL_WARNING:
-            logStr += "W/ ";
+            logStr += "W/";
             break;
         case LEVEL_ERROR:
-            logStr += "E/ ";
+            logStr += "E/";
             break;
         default:
             break;
         }
-
+        logStr += tag;
+        logStr += ": ";
         logStr += log;
 
         return logStr;

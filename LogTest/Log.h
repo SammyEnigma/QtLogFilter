@@ -14,18 +14,18 @@ class Log {
 public:
     static void waitForConnect(const QHostAddress& address, int port);
 
-    static void d(const QString& log);
-    static void w(const QString& log);
-    static void e(const QString& log);
+    static void d(const QString& tag, const QString& log);
+    static void w(const QString& tag, const QString& log);
+    static void e(const QString& tag, const QString& log);
 
     class Local {
     public:
         Local(const QString& threadName);
         ~Local();
 
-        void d(const QString& log);
-        void w(const QString& log);
-        void e(const QString& log);
+        void d(const QString& tag, const QString& log);
+        void w(const QString& tag, const QString& log);
+        void e(const QString& tag, const QString& log);
 
     };
 
@@ -45,7 +45,7 @@ private:
 
 private:
     void connect(const QHostAddress& address, int port);
-    static void addLog(LogData& data, const QString& log);
+    static void addLog(LogData& data, const QString& tag, const QString& log);
 
 private:
     class LogReadWriteThread : public QRunnable {

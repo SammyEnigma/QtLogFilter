@@ -7,5 +7,6 @@
 struct ClientData {
     ConnectData info;
     QList<LogData> data;
+    QStringList savedThreads;
     QByteArray receiveBuffer;
 };

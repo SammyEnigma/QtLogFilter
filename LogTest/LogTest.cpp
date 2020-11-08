@@ -14,13 +14,13 @@ public:
             int level = qrand() % 3;
             switch (level) {
             case 0:
-                local.d(QString::number(qrand()));
+                local.d("debug", QString::number(qrand()));
                 break;
             case 1:
-                local.w(QString::number(qrand()));
+                local.w("warning", QString::number(qrand()));
                 break;
             case 2:
-                local.e(QString::number(qrand()));
+                local.e("error", QString::number(qrand()));
                 break;
             }
             QThread::msleep(1000);
@@ -40,7 +40,7 @@ LogTest::LogTest() : QWidget(nullptr) {
     });
 
     connect(ui.pushButton_2, &QPushButton::clicked, [&] {
-        Log::d("log by pushbutton -> " + QString::number(qrand()));
+        Log::d("click", "log by pushbutton -> " + QString::number(qrand()));
     });
 
     connect(ui.pushButton_3, &QPushButton::clicked, [&] {

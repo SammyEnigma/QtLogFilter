@@ -7,6 +7,7 @@
 #include <qdatetime.h>
 #include <qthreadpool.h>
 #include <qeventloop.h>
+#include <qfileinfo.h>
 #include <qdebug.h>
 
 #include <qapplication.h>
@@ -29,22 +30,22 @@ void Log::waitForConnect(const QHostAddress& address, int port) {
     instance->connect(address, port);
 }
 
-void Log::d(const QString& log) {
+void Log::d(const QString& tag, const QString& log) {
     LogData data;
     data.level = LEVEL_DEBUG;
-    addLog(data, log);
+    addLog(data, tag, log);
 }
 
-void Log::w(const QString& log) {
+void Log::w(const QString& tag, const QString& log) {
     LogData data;
     data.level = LEVEL_WARNING;
-    addLog(data, log);
+    addLog(data, tag, log);
 }
 
-void Log::e(const QString& log) {
+void Log::e(const QString& tag, const QString& log) {
     LogData data;
     data.level = LEVEL_ERROR;
-    addLog(data, log);
+    addLog(data, tag, log);
 }
 
 Log::Local::Local(const QString& threadName) {
@@ -57,21 +58,21 @@ Log::Local::~Local() {
     if (instance != nullptr) {
         LogData data;
         data.level = LEVEL_ERROR;
-        instance->addLog(data, "thread exit!");
+        instance->addLog(data, "", "thread exit!");
     }
     instanceLock.unlock();
 }
 
-void Log::Local::d(const QString& log) {
-    instance->d(log);
+void Log::Local::d(const QString& tag, const QString& log) {
+    instance->d(tag, log);
 }
 
-void Log::Local::w(const QString& log) {
-    instance->w(log);
+void Log::Local::w(const QString& tag, const QString& log) {
+    instance->w(tag, log);
 }
 
-void Log::Local::e(const QString& log) {
-    instance->e(log);
+void Log::Local::e(const QString& tag, const QString& log) {
+    instance->e(tag, log);
 }
 
 Log::~Log() {
@@ -83,13 +84,14 @@ void Log::connect(const QHostAddress& address, int port) {
     connectWaitLoop.exec();
 }
 
-void Log::addLog(LogData& data, const QString& log) {
+void Log::addLog(LogData& data, const QString& tag, const QString& log) {
     QMutexLocker lock(&instance->logQueueLock);
 
     data.threadId = (int64_t)QThread::currentThreadId();
     data.threadName = instance->threadNames.value(data.threadId);
     data.time = QDateTime::currentMSecsSinceEpoch();
     data.log = log;
+    data.tag = tag;
 
     instance->logQueue.enqueue(data);
 }
@@ -149,7 +151,8 @@ void Log::LogReadWriteThread::run() {
 
 QByteArray Log::LogReadWriteThread::getProcessInfo() {
     QJsonObject obj;
-    obj.insert("processName", QCoreApplication::arguments().first());
+    QFileInfo file(QCoreApplication::arguments().first());
+    obj.insert("processName", file.baseName());
     obj.insert("processId", QCoreApplication::applicationPid());
     QJsonDocument doc(obj);
     return doc.toJson();
