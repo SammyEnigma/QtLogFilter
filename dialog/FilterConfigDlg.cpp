@@ -15,9 +15,25 @@ FilterConfigDlg::FilterConfigDlg(QWidget* parent)
     ui = new Ui::FilterConfig;
     setupUi(*ui);
 
-    connect(ui->pushButton, &QPushButton::clicked, [&] {
+    connect(ui->btn_cancel, &QPushButton::clicked, [&] {
         close();
     });
+
+    connect(ui->btn_confim, &QPushButton::clicked, [&] {
+        ConfigData data;
+        data.configName = ui->name->text();
+        if (data.configName.isEmpty()) {
+            return;
+        }
+        data.tagThreadName = ui->thread->text();
+        data.tag = ui->tag->text();
+        data.regEnable = ui->reg->isChecked();
+        data.logLevel = ui->level->currentIndex();
+        newConfig(data);
+        close();
+    });
+
+    ui->level->addItems(QStringList() << "debug" << "warning" << "error");
 }
 
 FilterConfigDlg::~FilterConfigDlg() {

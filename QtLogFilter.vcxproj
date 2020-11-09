@@ -77,7 +77,7 @@
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="QtSettings">
-    <QtInstall>msvc2017_x64</QtInstall>
+    <QtInstall>msvc2017_64</QtInstall>
     <QtModules>core;network;gui;widgets</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
@@ -163,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bean\ClientData.h" />
+    <ClInclude Include="bean\ConfigData.h" />
     <ClInclude Include="bean\LogData.h" />
     <ClInclude Include="config\ConfigLoader.h" />
     <ClInclude Include="dialog\FilterConfigDlg.h" />

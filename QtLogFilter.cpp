@@ -24,10 +24,19 @@ QtLogFilter::QtLogFilter(QWidget *parent)
     connect(ui.btn_setting, &QPushButton::clicked, [&] {
         auto dlg = new SettingDlg(this);
         dlg->show();
+        dlg->setConfig(configLoader->getAddress(), configLoader->getPort());
+        dlg->configChanged = [&](const QHostAddress& addr, int port) {
+            configLoader->setHost(addr, port);
+            logReceiver->listen(configLoader->getAddress(), configLoader->getPort());
+        };
     });
     connect(ui.btn_add, &QPushButton::clicked, [&] {
         auto dlg = new FilterConfigDlg(this);
         dlg->show();
+        dlg->newConfig = [&](const ConfigData& data) {
+            configLoader->addNewConfigData(data);
+            appendFilterConfig(data);
+        };
     });
 
     ui.textBrowser->setVerticalScrollBar(new SmoothScrollbar(this));
@@ -42,6 +51,8 @@ QtLogFilter::QtLogFilter(QWidget *parent)
             filterProcess(clientData.info);
             filterThread(logData);
             filterLevel(logData);
+            filterStr(logData);
+            filterConfig(logData);
         }
         catch (...) {
             return false;
@@ -64,15 +75,19 @@ QtLogFilter::QtLogFilter(QWidget *parent)
     initThreadBox();
     ui.box_level->setModel((levelFilter = new QStandardItemModel(this)));
     initLevelBox();
-
+    ui.box_filters->setModel((configFilter = new QStandardItemModel(this)));
+    configFilter->appendRow(new QStandardItem("[no filter]"));
+    ui.box_filters->setCurrentIndex(0);
+    for (const auto& d : configLoader->getConfigs()) {
+        appendFilterConfig(d);
+    }
     
     connect(ui.box_process, qOverload<int>(&QComboBox::currentIndexChanged), [&] (int i) {
         ui.textBrowser->clear();
         initThreadBox();
 
-        auto index = processFilter->index(i, 0);
-        auto info = index.data(Qt::UserRole + 1).value<ConnectData>();
-        bool death = index.data(Qt::UserRole + 2).toBool();
+        bool death;
+        auto info = getClientInfo(i, death);
         logReceiver->reselectProcess(info, death);
     });
 
@@ -83,6 +98,36 @@ QtLogFilter::QtLogFilter(QWidget *parent)
     connect(ui.box_level, qOverload<int>(&QComboBox::currentIndexChanged), [&](int i) {
         reloadLog();
     });
+
+    connect(ui.filter_str, &QLineEdit::textChanged, [&] (const QString&) {
+        reloadLog();
+    });
+
+    connect(ui.check_reg, &QCheckBox::stateChanged, [&](int) {
+        reloadLog();
+    });
+
+    connect(ui.btn_clear, &QPushButton::clicked, [&] {
+        ui.textBrowser->clear();
+
+        if (ui.box_process->currentIndex() == -1)
+            return;
+
+        bool death;
+        auto info = getClientInfo(ui.box_process->currentIndex(), death);
+        logReceiver->clearLog(info, death);
+    });
+
+    connect(ui.box_filters, qOverload<int>(&QComboBox::currentIndexChanged), [&](int i) {
+        reloadLog();
+    });
+}
+
+ConnectData QtLogFilter::getClientInfo(int row, bool& death) {
+    auto index = processFilter->index(row, 0);
+    auto info = index.data(Qt::UserRole + 1).value<ConnectData>();
+    death = index.data(Qt::UserRole + 2).toBool();
+    return info;
 }
 
 void QtLogFilter::reloadLog() {
@@ -91,9 +136,8 @@ void QtLogFilter::reloadLog() {
     if (ui.box_process->currentIndex() == -1)
         return;
 
-    auto index = processFilter->index(ui.box_process->currentIndex(), 0);
-    auto info = index.data(Qt::UserRole + 1).value<ConnectData>();
-    bool death = index.data(Qt::UserRole + 2).toBool();
+    bool death;
+    auto info = getClientInfo(ui.box_process->currentIndex(), death);
     logReceiver->reloadProcessLog(info, death);
 }
 
@@ -102,6 +146,7 @@ void QtLogFilter::showEvent(QShowEvent*) {
 }
 
 void QtLogFilter::initThreadBox() {
+    ui.box_thread->blockSignals(true);
     threadFilter->clear();
 
     auto item = new QStandardItem(QStringLiteral("[Ыљга]"));
@@ -112,7 +157,6 @@ void QtLogFilter::initThreadBox() {
     item->setData(0, Qt::UserRole + 1);
     threadFilter->appendRow(item);
 
-    ui.box_thread->blockSignals(true);
     ui.box_thread->setCurrentIndex(0);
     ui.box_thread->blockSignals(false);
 }
@@ -129,6 +173,12 @@ void QtLogFilter::initLevelBox() {
     item = new QStandardItem("error");
     item->setData(2, Qt::UserRole + 1);
     levelFilter->appendRow(item);
+}
+
+void QtLogFilter::appendFilterConfig(const ConfigData& data) {
+    auto item = new QStandardItem(data.configName);
+    item->setData(QVariant::fromValue(data), Qt::UserRole + 1);
+    configFilter->appendRow(item);
 }
 
 void QtLogFilter::newProcessArrived(ConnectData data) {
@@ -187,6 +237,68 @@ void QtLogFilter::filterThread(const LogData& data) {
 void QtLogFilter::filterLevel(const LogData& data) {
     int tagLevel = levelFilter->index(ui.box_level->currentIndex(), 0).data(Qt::UserRole + 1).toInt();
     if (data.level < tagLevel) {
+        throw "level not match";
+    }
+}
+
+void QtLogFilter::filterStr(const LogData& data) {
+    auto tag = ui.filter_str->text();
+    if (!tag.isEmpty()) {
+        bool regEnable = ui.check_reg->isChecked();
+        if (!regEnable) {
+            if (QString("%1-%2").arg(data.threadName).arg(data.threadId).contains(tag)) {
+                return;
+            }
+            if (data.tag.contains(tag)) {
+                return;
+            }
+            if (data.log.contains(tag)) {
+                return;
+            }
+        } else {
+            QRegExp tag1(tag);
+            if (QString("%1-%2").arg(data.threadName).arg(data.threadId).contains(tag1)) {
+                return;
+            }
+            if (data.tag.contains(tag1)) {
+                return;
+            }
+            if (data.log.contains(tag1)) {
+                return;
+            }
+        }
+        throw "filter str not match";
+    }
+}
+
+void QtLogFilter::filterConfig(const LogData& data) {
+    int currentIndex = ui.box_filters->currentIndex();
+    if (currentIndex == -1) {
+        return;
+    }
+    auto config = configFilter->index(currentIndex, 0).data(Qt::UserRole + 1);
+    if (config.isNull()) {
+        return;
+    }
+    auto configData = config.value<ConfigData>();
+    if (!configData.tagThreadName.isEmpty()) {
+        if (data.threadName != configData.tagThreadName) {
+            throw "thread not match";
+        }
+    }
+    if (!configData.tag.isEmpty()) {
+        if (configData.regEnable) {
+            QRegExp tag1(configData.tag);
+            if (!data.tag.contains(tag1) && !data.log.contains(tag1)) {
+                throw "tag not match";
+            }
+        } else {
+            if (!data.tag.contains(configData.tag) && !data.log.contains(configData.tag)) {
+                throw "tag not match";
+            }
+        }
+    }
+    if (data.level < configData.logLevel) {
         throw "level not match";
     }
 }

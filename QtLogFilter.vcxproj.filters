@@ -120,6 +120,9 @@
     <ClInclude Include="config\ConfigLoader.h">
       <Filter>Header Files\config</Filter>
     </ClInclude>
+    <ClInclude Include="bean\ConfigData.h">
+      <Filter>Header Files\bean</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="style.qss">

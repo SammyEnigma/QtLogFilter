@@ -18,16 +18,13 @@ bool Log::LogReadWriteThread::readWriteRunning = true;
 QMutex instanceLock;
 
 void Log::waitForConnect(const QHostAddress& address, int port) {
-    instanceLock.lock();
-    if (instance == nullptr) {
-        instance = new Log;
-        QObject::connect(qApp, &QCoreApplication::aboutToQuit, [&] {
-            delete instance;
-            instance = nullptr;
-        });
-    }
-    instanceLock.unlock();
+    createInstance();
     instance->connect(address, port);
+}
+
+void Log::useQDebugOnly() {
+    createInstance();
+    instance->onlyQDebugPrint = true;
 }
 
 void Log::d(const QString& tag, const QString& log) {
@@ -79,20 +76,37 @@ Log::~Log() {
     LogReadWriteThread::readWriteRunning = false;
 }
 
+void Log::createInstance() {
+    instanceLock.lock();
+    if (instance == nullptr) {
+        instance = new Log;
+        QObject::connect(qApp, &QCoreApplication::aboutToQuit, [&] {
+            delete instance;
+            instance = nullptr;
+        });
+        instance->onlyQDebugPrint = false;
+    }
+    instanceLock.unlock();
+}
+
 void Log::connect(const QHostAddress& address, int port) {
     QThreadPool::globalInstance()->start(new LogReadWriteThread(address, port));
     connectWaitLoop.exec();
 }
 
 void Log::addLog(LogData& data, const QString& tag, const QString& log) {
-    QMutexLocker lock(&instance->logQueueLock);
-
     data.threadId = (int64_t)QThread::currentThreadId();
     data.threadName = instance->threadNames.value(data.threadId);
     data.time = QDateTime::currentMSecsSinceEpoch();
     data.log = log;
     data.tag = tag;
 
+    if (instance->onlyQDebugPrint) {
+        qDebug() << data.toString();
+        return;
+    }
+
+    QMutexLocker lock(&instance->logQueueLock);
     instance->logQueue.enqueue(data);
 }
 

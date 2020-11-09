@@ -18,6 +18,7 @@ public:
     void listen(const QHostAddress& address, int port);
     void reselectProcess(const ConnectData& data, bool death);
     void reloadProcessLog(const ConnectData& data, bool death);
+    void clearLog(const ConnectData& data, bool death);
 
     std::function<bool(const ClientData&, const LogData&)> validator;
     std::function<void(const ClientData&, const QString&)> getNewThreadHandler;

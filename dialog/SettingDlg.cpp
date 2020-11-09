@@ -2,7 +2,8 @@
 
 #include "ui_setting.h"
 
-#include <qhostinfo.h>
+#include <qregexp.h>
+#include <qregularexpression.h>
 
 SettingDlg::SettingDlg(QWidget* parent)
     : ShadowWidget(parent)
@@ -18,16 +19,34 @@ SettingDlg::SettingDlg(QWidget* parent)
     setupUi(*ui);
 
     ui->comboBox->addItems(getLocalIps());
-    ui->comboBox->addItem("any");
+    ui->comboBox->addItem("0.0.0.0");
+    ui->comboBox->addItem("127.0.0.1");
 
     connect(ui->pushButton, &QPushButton::clicked, [&] {
+        int port = ui->lineEdit->text().toInt();
+        if (port > 65535) {
+            return;
+        }
+        QHostAddress select = QHostAddress(ui->comboBox->currentText());
+        if (select != oldAddr || port != oldPort) {
+            configChanged(select, oldPort);
+        }
         close();
     });
+
+    ui->lineEdit->setValidator(new QRegExpValidator(QRegExp("\\d{0,5}")));
 }
 
 SettingDlg::~SettingDlg()
 {
     delete ui;
+}
+
+void SettingDlg::setConfig(const QHostAddress& address, int port) {
+    oldAddr = address;
+    oldPort = port;
+    ui->comboBox->setCurrentText(address.toString());
+    ui->lineEdit->setText(QString::number(port));
 }
 
 QStringList SettingDlg::getLocalIps() {

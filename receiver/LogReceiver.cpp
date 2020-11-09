@@ -40,7 +40,9 @@ void LogReceiver::reselectProcess(const ConnectData& data, bool death) {
             getNewThreadHandler(*clientData, threadName);
         }
         for (const auto& log : clientData->data) {
-            emit clientGotLog(log);
+            if (validator != nullptr && validator(*clientData, log)) {
+                emit clientGotLog(log);
+            }
         }
     }
 }
@@ -49,8 +51,17 @@ void LogReceiver::reloadProcessLog(const ConnectData& data, bool death) {
     auto clientData = getClient(data, death);
     if (clientData != nullptr) {
         for (const auto& log : clientData->data) {
-            emit clientGotLog(log);
+            if (validator != nullptr && validator(*clientData, log)) {
+                emit clientGotLog(log);
+            }
         }
+    }
+}
+
+void LogReceiver::clearLog(const ConnectData& data, bool death) {
+    auto clientData = getClient(data, death);
+    if (clientData != nullptr) {
+        clientData->data.clear();
     }
 }
 

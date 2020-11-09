@@ -197,7 +197,7 @@ background:transparent;
       <widget class="QLineEdit" name="filter_str"/>
      </item>
      <item>
-      <widget class="QCheckBox" name="checkBox">
+      <widget class="QCheckBox" name="check_reg">
        <property name="text">
         <string>Reg</string>
        </property>

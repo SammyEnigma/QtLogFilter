@@ -31,10 +31,13 @@ private:
     QStandardItemModel* processFilter;
     QStandardItemModel* threadFilter;
     QStandardItemModel* levelFilter;
+    QStandardItemModel* configFilter;
 
 private:
     void initThreadBox();
     void initLevelBox();
+    void appendFilterConfig(const ConfigData& data);
+    ConnectData getClientInfo(int row, bool& death);
     void reloadLog();
 
 private slots:
@@ -47,4 +50,6 @@ private:
     void filterProcess(const ConnectData& processInfo);
     void filterThread(const LogData& data);
     void filterLevel(const LogData& data);
+    void filterStr(const LogData& data);
+    void filterConfig(const LogData& data);
 };

@@ -13,6 +13,7 @@
 class Log {
 public:
     static void waitForConnect(const QHostAddress& address, int port);
+    static void useQDebugOnly();
 
     static void d(const QString& tag, const QString& log);
     static void w(const QString& tag, const QString& log);
@@ -35,6 +36,8 @@ private:
     Log(const Log&) = delete;
     void operator=(const Log&) = delete;
 
+    static void createInstance();
+
 private:
     static Log* instance;
 
@@ -42,6 +45,7 @@ private:
     QHash<int64_t, QString> threadNames;
     QQueue<LogData> logQueue;
     QMutex logQueueLock;
+    bool onlyQDebugPrint;
 
 private:
     void connect(const QHostAddress& address, int port);
