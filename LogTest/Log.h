@@ -19,6 +19,8 @@ public:
     static void w(const QString& tag, const QString& log);
     static void e(const QString& tag, const QString& log);
 
+    static void release();
+
     class Local {
     public:
         Local(const QString& threadName);

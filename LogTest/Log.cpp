@@ -45,6 +45,11 @@ void Log::e(const QString& tag, const QString& log) {
     addLog(data, tag, log);
 }
 
+void Log::release() {
+    delete instance;
+    instance = nullptr;
+}
+
 Log::Local::Local(const QString& threadName) {
     auto threadId = (int64_t)QThread::currentThreadId();
     instance->threadNames.insert(threadId, threadName);
