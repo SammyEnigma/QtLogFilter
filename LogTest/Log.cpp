@@ -152,8 +152,8 @@ void Log::LogReadWriteThread::run() {
     loop.exec();
 
     while (readWriteRunning) {
+        QMutexLocker lock(&instance->logQueueLock);
         if (!instance->logQueue.isEmpty()) {
-            QMutexLocker lock(&instance->logQueueLock);
             auto log = instance->logQueue.dequeue();
             if (clientIsConnected) {
                 client->write(log.toTransData() + ',');
