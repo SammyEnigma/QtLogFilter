@@ -100,6 +100,10 @@ void Log::connect(const QHostAddress& address, int port) {
 }
 
 void Log::addLog(LogData& data, const QString& tag, const QString& log) {
+    QMutexLocker lock1(&instanceLock);
+    if (instance == nullptr) {
+        return;
+    }
     data.threadId = (int64_t)QThread::currentThreadId();
     data.threadName = instance->threadNames.value(data.threadId);
     data.time = QDateTime::currentMSecsSinceEpoch();
@@ -117,8 +121,7 @@ void Log::addLog(LogData& data, const QString& tag, const QString& log) {
 
 Log::LogReadWriteThread::LogReadWriteThread(const QHostAddress& address, int port)
     : address(address)
-    , port(port)
-{
+    , port(port) {
 }
 
 void Log::LogReadWriteThread::run() {
@@ -152,6 +155,10 @@ void Log::LogReadWriteThread::run() {
     loop.exec();
 
     while (readWriteRunning) {
+        QMutexLocker lock1(&instanceLock);
+        if (instance == nullptr) {
+            break;
+        }
         QMutexLocker lock(&instance->logQueueLock);
         if (!instance->logQueue.isEmpty()) {
             auto log = instance->logQueue.dequeue();
