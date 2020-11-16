@@ -55,6 +55,25 @@ border-radius:2px;
 
 QTextBrowser {
 background:transparent;
+}
+
+QScrollBar:vertical {
+    border-left:1px solid #3e3e3e;
+    background: transparent;
+    width: 12px;
+    margin: 0px;
+}
+QScrollBar::handle:vertical {
+    background: #3e3e3e;
+}
+QScrollBar::add-line:vertical{
+    height:0px;
+}
+QScrollBar::sub-line:vertical{
+    height:0px;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+     background: none;
 }</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,1">
@@ -264,24 +283,6 @@ background:transparent;
      <property name="styleSheet">
       <string notr="true">QTextBrowser{
 background:transparent;border:1px solid #3e3e3e;border-radius:2px;
-}
-QScrollBar:vertical {
-    border-left:1px solid #3e3e3e;
-    background: transparent;
-    width: 12px;
-    margin: 0px;
-}
-QScrollBar::handle:vertical {
-    background: #3e3e3e;
-}
-QScrollBar::add-line:vertical{
-    height:0px;
-}
-QScrollBar::sub-line:vertical{
-    height:0px;
-}
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-     background: none;
 }</string>
      </property>
      <property name="html">
