@@ -188,6 +188,11 @@ void QtLogFilter::newProcessArrived(ConnectData data) {
     processFilter->appendRow(item);
     if (ui.box_process->currentIndex() == -1) {
         ui.box_process->setCurrentIndex(0);
+    } else {
+        auto death = processFilter->index(ui.box_process->currentIndex(), 0).data(Qt::UserRole + 2).toBool();
+        if (death) {
+            ui.box_process->setCurrentIndex(processFilter->rowCount() - 1);
+        }
     }
 }
 
