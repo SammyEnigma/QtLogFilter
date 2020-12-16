@@ -28,18 +28,21 @@ void Log::useQDebugOnly() {
 }
 
 void Log::d(const QString& tag, const QString& log) {
+    QMutexLocker lock1(&instanceLock);
     LogData data;
     data.level = LEVEL_DEBUG;
     addLog(data, tag, log);
 }
 
 void Log::w(const QString& tag, const QString& log) {
+    QMutexLocker lock1(&instanceLock);
     LogData data;
     data.level = LEVEL_WARNING;
     addLog(data, tag, log);
 }
 
 void Log::e(const QString& tag, const QString& log) {
+    QMutexLocker lock1(&instanceLock);
     LogData data;
     data.level = LEVEL_ERROR;
     addLog(data, tag, log);
@@ -102,15 +105,16 @@ void Log::connect(const QHostAddress& address, int port) {
 }
 
 void Log::addLog(LogData& data, const QString& tag, const QString& log) {
-    QMutexLocker lock1(&instanceLock);
-    if (instance == nullptr) {
-        return;
-    }
     data.threadId = (int64_t)QThread::currentThreadId();
     data.threadName = instance->threadNames.value(data.threadId);
     data.time = QDateTime::currentMSecsSinceEpoch();
     data.log = log;
     data.tag = tag;
+
+    if (instance == nullptr) {
+        qDebug() << data.toString();
+        return;
+    }
 
     if (instance->onlyQDebugPrint) {
         qDebug() << data.toString();
