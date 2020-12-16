@@ -86,8 +86,10 @@ void Log::createInstance() {
     if (instance == nullptr) {
         instance = new Log;
         QObject::connect(qApp, &QCoreApplication::aboutToQuit, [&] {
+            instanceLock.lock();
             delete instance;
             instance = nullptr;
+            instanceLock.unlock();
         });
         instance->onlyQDebugPrint = false;
     }
