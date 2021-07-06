@@ -5,7 +5,7 @@ qt编写的一个日志筛选器
 
 1. 克隆项目，使用vs打开编译生成QtLogFilter
 
-2. 拷贝LogTest下的3个文件到项目中：Log.h、Log.cpp
+2. 拷贝LogTest下的2个文件到项目中：Log.h、Log.cpp
 
 3. 使用Log.h连接到QtLogFilter
 ```c++
