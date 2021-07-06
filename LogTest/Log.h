@@ -29,7 +29,7 @@ public:
     class Message {
     public:
         Message(const QString& tag, LogLevel level, const char* fileName, int line)
-            : tag(tag) , level(level), fileName(fileName), line(line) {
+            : tag(tag), level(level), fileName(fileName), line(line) {
             tagIsFile = false;
         }
 
@@ -39,7 +39,8 @@ public:
         }
 
         Message(const QString& tag, LogLevel level)
-            : tag(tag), level(level) {}
+            : tag(tag), level(level) {
+        }
 
         template<typename T>
         Message& operator<<(const T& msg) {
@@ -86,10 +87,11 @@ signals:
 
 private:
     Log();
+    ~Log();
 
     Q_DISABLE_COPY(Log);
 
-    static Log& instance();
+    static void createInstance();
 
 private:
     QHash<int64_t, QString> threadNames;
@@ -100,6 +102,8 @@ private:
     QHostAddress address;
     int port;
     QMutex nameSetLock;
+
+    static Log* m_log;
 
 protected:
     void run() override;

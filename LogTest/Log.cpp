@@ -99,31 +99,37 @@ struct LogData {
 };
 Q_DECLARE_METATYPE(LogData);
 
+Log* Log::m_log = nullptr;
 Log::Log() : onlyQDebugPrint(false) {
     connect(qApp, &QCoreApplication::aboutToQuit, [&] {
         quit();
         wait();
+        delete m_log;
+        m_log = nullptr;
     });
 }
 
-Log& Log::instance() {
-    static Log log;
-    return log;
+Log::~Log() {
+}
+
+
+void Log::createInstance() {
+    if (m_log == nullptr) {
+        m_log = new Log;
+    }
 }
 
 
 void Log::waitForConnect(const QHostAddress& address, int port) {
-    auto& log = instance();
-    if (log.onlyQDebugPrint) {
-        return;
-    }
-    log.address = address;
-    log.port = port;
-    log.start();
+    createInstance();
+    m_log->address = address;
+    m_log->port = port;
+    m_log->start();
 }
 
 void Log::useQDebugOnly() {
-    instance().onlyQDebugPrint = true;
+    createInstance();
+    m_log->onlyQDebugPrint = true;
 }
 
 void Log::run() {
@@ -167,8 +173,8 @@ void Log::run() {
 
 void Log::setCurrentThreadName(const QString& name) {
     auto threadId = (int64_t)QThread::currentThreadId();
-    QMutexLocker locker(&instance().nameSetLock);
-    instance().threadNames.insert(threadId, name);
+    QMutexLocker locker(&m_log->nameSetLock);
+    m_log->threadNames.insert(threadId, name);
 }
 
 void Log::threadExit() {
@@ -179,35 +185,33 @@ void Log::threadExit() {
 }
 
 void Log::addLog(LogData& data) {
-    auto& log = instance();
-
     data.threadId = (int64_t)QThread::currentThreadId();
     {
-        QMutexLocker locker(&log.nameSetLock);
-        data.threadName = log.threadNames.value(data.threadId);
+        QMutexLocker locker(&m_log->nameSetLock);
+        data.threadName = m_log->threadNames.value(data.threadId);
         if (data.threadName.isEmpty()) {
             if (QThread::currentThread() == qApp->thread()) {
                 data.threadName = "main";
             } else {
                 data.threadName = "Thread-" + QString::number(data.threadId);
             }
-            log.threadNames.insert(data.threadId, data.threadName);
+            m_log->threadNames.insert(data.threadId, data.threadName);
         }
     }
     data.time = QDateTime::currentMSecsSinceEpoch();
 
-    if (log.onlyQDebugPrint) {
+    if (m_log->onlyQDebugPrint) {
         qDebug() << data.toString();
         return;
     }
 
 
-    log.logQueueLock.lock();
-    bool needPosSignal = log.logQueue.isEmpty();
-    log.logQueue.enqueue(data);
-    log.logQueueLock.unlock();
+    m_log->logQueueLock.lock();
+    bool needPosSignal = m_log->logQueue.isEmpty();
+    m_log->logQueue.enqueue(data);
+    m_log->logQueueLock.unlock();
     if (needPosSignal) {
-        emit log.newLogArrived(QPrivateSignal());
+        emit m_log->newLogArrived(QPrivateSignal());
     }
 }
 
@@ -237,5 +241,10 @@ void Log::Message::postLog(const QString& message) {
     logData.level = level;
     logData.log = message + extra;
 
-    instance().addLog(logData);
+    if (m_log == nullptr) {
+        qDebug() << logData.toString();
+        return;
+    }
+
+    addLog(logData);
 }
