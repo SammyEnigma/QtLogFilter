@@ -1,187 +1,217 @@
 #include "Log.h"
 
-#include "LogData.h"
-
-#include <qcoreapplication.h>
-#include <qthread.h>
 #include <qdatetime.h>
-#include <qthreadpool.h>
 #include <qeventloop.h>
 #include <qfileinfo.h>
+
+#include <qjsondocument.h>
+#include <qjsonobject.h>
+#include <qdatetime.h>
+
 #include <qdebug.h>
 
 #include <qapplication.h>
 
-Log* Log::instance = nullptr;
-bool Log::LogReadWriteThread::readWriteRunning = true;
+struct ConnectData {
+    QString processName;
+    qint64 processId;
+    bool clientReady;
 
-QMutex instanceLock;
+    ConnectData() {
+        processId = -1;
+        clientReady = false;
+    }
+};
+Q_DECLARE_METATYPE(ConnectData);
+
+inline bool operator==(const ConnectData& e1, const ConnectData& e2) {
+    return e1.processName == e2.processName
+        && e1.processId == e2.processId;
+}
+
+inline uint qHash(const ConnectData& key, uint seed) {
+    return qHash(key.processName, seed) ^ key.processId;
+}
+
+struct LogData {
+    QString threadName;
+    int64_t threadId;
+    LogLevel level;
+    qint64 time;
+    QString log;
+    QString tag;
+
+    QByteArray toTransData() {
+        QJsonObject obj;
+        obj.insert("a", threadName);
+        obj.insert("b", threadId);
+        obj.insert("c", (int)level);
+        obj.insert("d", time);
+        obj.insert("e", log);
+        obj.insert("f", tag);
+        QJsonDocument doc(obj);
+        return doc.toJson(QJsonDocument::Compact).toBase64();
+    }
+
+    void fromTransData(const QByteArray& data) {
+        QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromBase64(data));
+        if (!doc.isNull()) {
+            auto obj = doc.object();
+            threadName = obj.value("a").toString();
+            threadId = obj.value("b").toVariant().value<int64_t>();
+            level = (LogLevel)obj.value("c").toInt();
+            time = obj.value("d").toVariant().toLongLong();
+            log = obj.value("e").toString();
+            tag = obj.value("f").toString();
+        }
+    }
+
+    QString toString() {
+        QString logStr;
+
+        QDateTime t;
+        t.setMSecsSinceEpoch(time);
+        logStr += t.toString("HH:mm:ss.zzz ");
+
+        if (!threadName.isEmpty()) {
+            logStr += QString("%1-%2 ").arg(threadName).arg(threadId);
+        }
+
+        switch (level) {
+        case LEVEL_DEBUG:
+            logStr += "D/";
+            break;
+        case LEVEL_WARNING:
+            logStr += "W/";
+            break;
+        case LEVEL_ERROR:
+            logStr += "E/";
+            break;
+        default:
+            break;
+        }
+        logStr += tag;
+        logStr += ": ";
+        logStr += log;
+
+        return logStr;
+    }
+};
+Q_DECLARE_METATYPE(LogData);
+
+Log::Log() : onlyQDebugPrint(false) {
+    connect(qApp, &QCoreApplication::aboutToQuit, [&] {
+        quit();
+        wait();
+    });
+}
+
+Log& Log::instance() {
+    static Log log;
+    return log;
+}
+
 
 void Log::waitForConnect(const QHostAddress& address, int port) {
-    createInstance();
-    instance->connect(address, port);
+    auto& log = instance();
+    if (log.onlyQDebugPrint) {
+        return;
+    }
+    log.address = address;
+    log.port = port;
+    log.start();
 }
 
 void Log::useQDebugOnly() {
-    createInstance();
-    instance->onlyQDebugPrint = true;
+    instance().onlyQDebugPrint = true;
 }
 
-void Log::d(const QString& tag, const QString& log) {
-    QMutexLocker lock1(&instanceLock);
-    LogData data;
-    data.level = LEVEL_DEBUG;
-    addLog(data, tag, log);
-}
+void Log::run() {
+    auto client = new QTcpSocket;
+    QEventLoop connectLoop;
 
-void Log::w(const QString& tag, const QString& log) {
-    QMutexLocker lock1(&instanceLock);
-    LogData data;
-    data.level = LEVEL_WARNING;
-    addLog(data, tag, log);
-}
-
-void Log::e(const QString& tag, const QString& log) {
-    QMutexLocker lock1(&instanceLock);
-    LogData data;
-    data.level = LEVEL_ERROR;
-    addLog(data, tag, log);
-}
-
-void Log::release() {
-    delete instance;
-    instance = nullptr;
-}
-
-Log::Local::Local(const QString& threadName) {
-    auto threadId = (int64_t)QThread::currentThreadId();
-    instance->threadNames.insert(threadId, threadName);
-}
-
-Log::Local::~Local() {
-    instanceLock.lock();
-    if (instance != nullptr) {
-        LogData data;
-        data.level = LEVEL_ERROR;
-        instance->addLog(data, "", "thread exit!");
-    }
-    instanceLock.unlock();
-}
-
-void Log::Local::d(const QString& tag, const QString& log) {
-    instance->d(tag, log);
-}
-
-void Log::Local::w(const QString& tag, const QString& log) {
-    instance->w(tag, log);
-}
-
-void Log::Local::e(const QString& tag, const QString& log) {
-    instance->e(tag, log);
-}
-
-Log::~Log() {
-    LogReadWriteThread::readWriteRunning = false;
-}
-
-void Log::createInstance() {
-    instanceLock.lock();
-    if (instance == nullptr) {
-        instance = new Log;
-        QObject::connect(qApp, &QCoreApplication::aboutToQuit, [&] {
-            instanceLock.lock();
-            delete instance;
-            instance = nullptr;
-            instanceLock.unlock();
-        });
-        instance->onlyQDebugPrint = false;
-    }
-    instanceLock.unlock();
-}
-
-void Log::connect(const QHostAddress& address, int port) {
-    QThreadPool::globalInstance()->start(new LogReadWriteThread(address, port));
-    connectWaitLoop.exec();
-}
-
-void Log::addLog(LogData& data, const QString& tag, const QString& log) {
-    data.threadId = (int64_t)QThread::currentThreadId();
-    data.threadName = instance->threadNames.value(data.threadId);
-    data.time = QDateTime::currentMSecsSinceEpoch();
-    data.log = log;
-    data.tag = tag;
-
-    if (instance == nullptr) {
-        qDebug() << data.toString();
-        return;
-    }
-
-    if (instance->onlyQDebugPrint) {
-        qDebug() << data.toString();
-        return;
-    }
-
-    QMutexLocker lock(&instance->logQueueLock);
-    instance->logQueue.enqueue(data);
-}
-
-Log::LogReadWriteThread::LogReadWriteThread(const QHostAddress& address, int port)
-    : address(address)
-    , port(port) {
-}
-
-void Log::LogReadWriteThread::run() {
-    QTcpSocket* client;
-
-    client = new QTcpSocket;
-
-    QEventLoop loop;
-
-    QObject::connect(client, &QTcpSocket::connected, [&] {
-        clientIsConnected = true;
-    });
-
-    QObject::connect(client, qOverload<QAbstractSocket::SocketError>(&QTcpSocket::error), [&](QAbstractSocket::SocketError err) {
-        qDebug() << err;
-        clientIsConnected = false;
-        loop.quit();
-    });
-
-    QObject::connect(client, &QTcpSocket::readyRead, [&] {
+    connect(client, &QTcpSocket::readyRead, [&] {
         auto data = client->readAll();
         if (data.compare("who") == 0) {
             client->write(getProcessInfo());
         } else if (data.compare("ready") == 0) {
-            instance->connectWaitLoop.exit();
-            loop.quit();
+            connectLoop.quit();
         }
     });
-
     client->connectToHost(address, port);
-    loop.exec();
 
-    while (readWriteRunning) {
-        QMutexLocker lock1(&instanceLock);
-        if (instance == nullptr) {
-            break;
-        }
-        QMutexLocker lock(&instance->logQueueLock);
-        if (!instance->logQueue.isEmpty()) {
-            auto log = instance->logQueue.dequeue();
-            if (clientIsConnected) {
-                client->write(log.toTransData() + ',');
-                client->waitForBytesWritten();
-            } else {
-                qDebug() << log.toString();
-            }
-        }
+    Q_ASSERT_X(client->waitForConnected(1000), "log", "cannot connect log filter!");
+
+    connectLoop.exec();
+
+    if (client->state() != QTcpSocket::ConnectedState) {
+        onlyQDebugPrint = true;
+        return;
     }
 
-    client->close();
+    connect(this, &Log::newLogArrived, client, [&] {
+        QMutexLocker locker(&logQueueLock);
+        QByteArray message;
+        while (!logQueue.isEmpty()) {
+            auto log = logQueue.dequeue();
+            message.append(log.toTransData()).append(',');
+        }
+        client->write(message);
+        client->waitForBytesWritten();
+    }, Qt::QueuedConnection);
+
+    exec();
+
     delete client;
 }
 
-QByteArray Log::LogReadWriteThread::getProcessInfo() {
+void Log::setCurrentThreadName(const QString& name) {
+    auto threadId = (int64_t)QThread::currentThreadId();
+    QMutexLocker locker(&instance().nameSetLock);
+    instance().threadNames.insert(threadId, name);
+}
+
+void Log::threadExit() {
+    LogData data;
+    data.level = LEVEL_ERROR;
+    data.log = "thread exit!";
+    addLog(data);
+}
+
+void Log::addLog(LogData& data) {
+    auto& log = instance();
+
+    data.threadId = (int64_t)QThread::currentThreadId();
+    {
+        QMutexLocker locker(&log.nameSetLock);
+        data.threadName = log.threadNames.value(data.threadId);
+        if (data.threadName.isEmpty()) {
+            if (QThread::currentThread() == qApp->thread()) {
+                data.threadName = "main";
+            } else {
+                data.threadName = "Thread-" + QString::number(data.threadId);
+            }
+            log.threadNames.insert(data.threadId, data.threadName);
+        }
+    }
+    data.time = QDateTime::currentMSecsSinceEpoch();
+
+    if (log.onlyQDebugPrint) {
+        qDebug() << data.toString();
+        return;
+    }
+
+
+    log.logQueueLock.lock();
+    bool needPosSignal = log.logQueue.isEmpty();
+    log.logQueue.enqueue(data);
+    log.logQueueLock.unlock();
+    if (needPosSignal) {
+        emit log.newLogArrived(QPrivateSignal());
+    }
+}
+
+QByteArray Log::getProcessInfo() {
     QJsonObject obj;
     QFileInfo file(QCoreApplication::arguments().first());
     obj.insert("processName", file.baseName());
@@ -190,3 +220,22 @@ QByteArray Log::LogReadWriteThread::getProcessInfo() {
     return doc.toJson();
 }
 
+void Log::Message::postLog(const QString& message) {
+    QString extra;
+    if (!fileName.isEmpty()) {
+        QFileInfo fileInfo(fileName);
+        if (tagIsFile) {
+            tag = fileInfo.baseName();
+            extra = QString(" (line:%1)").arg(line);
+        } else {
+            extra = QString(" (file: %1 line:%2)").arg(fileInfo.baseName()).arg(line);
+        }
+    }
+
+    LogData logData;
+    logData.tag = tag;
+    logData.level = level;
+    logData.log = message + extra;
+
+    instance().addLog(logData);
+}

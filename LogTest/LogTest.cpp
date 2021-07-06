@@ -9,22 +9,23 @@ class TestThread : public QThread {
 public:
     void run() override {
         testRunning = true;
-        Log::Local local("logtest");
+        Log::setCurrentThreadName("logtest");
         while (testRunning) {
             int level = qrand() % 3;
             switch (level) {
             case 0:
-                local.d("debug", QString::number(qrand()));
+                Log::d("debug") << qrand();
                 break;
             case 1:
-                local.w("warning", QString::number(qrand()));
+                Log::w("warning") << qrand();
                 break;
             case 2:
-                local.e("error", QString::number(qrand()));
+                Log::e("error") << qrand();
                 break;
             }
             QThread::msleep(1000);
         }
+        Log::threadExit();
     }
 
     static bool testRunning;
@@ -40,7 +41,9 @@ LogTest::LogTest() : QWidget(nullptr) {
     });
 
     connect(ui.pushButton_2, &QPushButton::clicked, [&] {
-        Log::d("click", "log by pushbutton -> " + QString::number(qrand()));
+        Log::d("click") << "log by pushbutton -> " + QString::number(qrand()) << this->windowFlags();
+        Log_D("click") << "log by pushButton";
+        Log_d << "log by pushButton";
     });
 
     connect(ui.pushButton_3, &QPushButton::clicked, [&] {

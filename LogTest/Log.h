@@ -1,37 +1,30 @@
 ﻿#pragma once
 
 #include <qhostinfo.h>
-#include <qeventloop.h>
 #include <qtcpsocket.h>
-#include <qrunnable.h>
-#include <qfileinfo.h>
 
 #include <qqueue.h>
 #include <qmutex.h>
 
-#include "LogData.h"
+#include <qthread.h>
 
-class Log {
+enum LogLevel {
+    LEVEL_DEBUG = 0,
+    LEVEL_WARNING,
+    LEVEL_ERROR,
+};
+
+class LogData;
+class Log : public QThread {
+    Q_OBJECT
+
 public:
     static void waitForConnect(const QHostAddress& address, int port);
     static void useQDebugOnly();
 
-    static void d(const QString& tag, const QString& log);
-    static void w(const QString& tag, const QString& log);
-    static void e(const QString& tag, const QString& log);
+    static void setCurrentThreadName(const QString& name);
 
-    static void release();
-
-    class Local {
-    public:
-        Local(const QString& threadName);
-        ~Local();
-
-        void d(const QString& tag, const QString& log);
-        void w(const QString& tag, const QString& log);
-        void e(const QString& tag, const QString& log);
-
-    };
+    static void threadExit();
 
     class Message {
     public:
@@ -45,28 +38,13 @@ public:
             tagIsFile = true;
         }
 
-        void operator<<(const QString& msg) {
-            QFileInfo fileInfo(fileName);
-            QString extra;
-            if (tagIsFile) {
-                tag = fileInfo.baseName();
-                extra = QString(" (line:%1)").arg(line);
-            } else {
-                extra = QString(" (file: %1 line:%2)").arg(fileInfo.baseName()).arg(line);
-            }
-            switch (level) {
-            case LEVEL_DEBUG:
-                Log::d(tag, msg + extra);
-                break;
-            case LEVEL_WARNING:
-                Log::w(tag, msg + extra);
-                break;
-            case LEVEL_ERROR:
-                Log::e(tag, msg + extra);
-                break;
-            default:
-                break;
-            }
+        Message(const QString& tag, LogLevel level)
+            : tag(tag), level(level) {}
+
+        template<typename T>
+        Message& operator<<(const T& msg) {
+            postLog(messageToStr(msg));
+            return *this;
         }
 
     private:
@@ -74,47 +52,62 @@ public:
         int line;
         LogLevel level;
         bool tagIsFile;
+
+    private:
+        void postLog(const QString& message);
+
+        template<typename T>
+        QString messageToStr(const T& msg) {
+            QString messageStr;
+            QDebug(&messageStr) << msg;
+            return messageStr;
+        }
+
+        template<>
+        QString messageToStr(const QString& message) {
+            return message;
+        }
     };
 
+    static Message d(const QString& tag) {
+        return Message(tag, LEVEL_DEBUG);
+    }
+
+    static Message w(const QString& tag) {
+        return Message(tag, LEVEL_WARNING);
+    }
+
+    static Message e(const QString& tag) {
+        return Message(tag, LEVEL_ERROR);
+    }
+
+signals:
+    void newLogArrived(QPrivateSignal);
+
 private:
-    Log() {};
-    ~Log();
-    Log(const Log&) = delete;
-    void operator=(const Log&) = delete;
+    Log();
 
-    static void createInstance();
+    Q_DISABLE_COPY(Log);
+
+    static Log& instance();
 
 private:
-    static Log* instance;
-
-    QEventLoop connectWaitLoop;
     QHash<int64_t, QString> threadNames;
     QQueue<LogData> logQueue;
     QMutex logQueueLock;
     bool onlyQDebugPrint;
 
-private:
-    void connect(const QHostAddress& address, int port);
-    static void addLog(LogData& data, const QString& tag, const QString& log);
+    QHostAddress address;
+    int port;
+    QMutex nameSetLock;
+
+protected:
+    void run() override;
 
 private:
-    class LogReadWriteThread : public QRunnable {
-    public:
-        LogReadWriteThread(const QHostAddress& address, int port);
+    static void addLog(LogData& data);
 
-        static bool readWriteRunning;
-
-    protected:
-        void run() override;
-
-    private:
-        QHostAddress address;
-        int port;
-        bool clientIsConnected;
-
-    private:
-        QByteArray getProcessInfo();
-    };
+    QByteArray getProcessInfo();
 };
 
 #define Log_D(tag)     Log::Message(tag, LEVEL_DEBUG, __FILE__, __LINE__)
