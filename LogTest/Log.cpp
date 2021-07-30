@@ -224,7 +224,23 @@ QByteArray Log::getProcessInfo() {
     return doc.toJson();
 }
 
-void Log::Message::postLog(const QString& message) {
+Log::Message::Message(const QString& tag, LogLevel level, const char* fileName, int line)
+    : tag(tag), level(level), fileName(fileName), line(line), logger(&cacheString) {
+    tagIsFile = false;
+}
+
+Log::Message::Message(LogLevel level, const char* fileName, int line)
+    : level(level), fileName(fileName), line(line), logger(&cacheString) {
+    tagIsFile = true;
+}
+
+Log::Message::Message(const QString& tag, LogLevel level)
+    : tag(tag), level(level), logger(&cacheString) {
+}
+
+Log::Message::~Message() {
+    if (cacheString.isEmpty()) return;
+
     QString extra;
     if (!fileName.isEmpty()) {
         QFileInfo fileInfo(fileName);
@@ -239,7 +255,7 @@ void Log::Message::postLog(const QString& message) {
     LogData logData;
     logData.tag = tag;
     logData.level = level;
-    logData.log = message + extra;
+    logData.log = cacheString + extra;
 
     if (m_log == nullptr) {
         qDebug() << logData.toString();

@@ -31,7 +31,7 @@ public:
         //set current thread log name
         Log::setCurrentThreadName("logtest");
 
-        Log::d("thrtag") << qrand(); //11:08:38.442 logtest-31068 D/thrtag: 29358
+        Log_D("thrtag") << qrand(); //11:08:38.442 logtest-31068 D/thrtag: 29358
 
         //print thread exit
         Log::threadExit(); //11:08:40.443 logtest-31068 E/: thread exit!
@@ -43,10 +43,8 @@ public:
     LogTest() {
         ...
         connect(ui.pushButton, &QPushButton::clicked, [&] {
-            //this will print two logs
-            //11:08:41.984 main-37068 D/click: log by pushbutton -> 18467
-            //11:08:41.984 main-37068 D/click: QFlags<Qt::WindowType>(Window|WindowTitleHint|WindowSystemMenuHint|WindowMinMaxButtonsHint|WindowCloseButtonHint|WindowFullscreenButtonHint)
-            Log::d("click") << "log by pushbutton -> " + QString::number(qrand()) << this->windowFlags();
+            //11:08:41.984 main-37068 D/click: log by pushbutton -> 18467  QFlags<Qt::WindowType>(Window|WindowTitleHint|WindowSystemMenuHint|WindowMinMaxButtonsHint|WindowCloseButtonHint|WindowFullscreenButtonHint)
+            Log_D("click") << "log by pushbutton ->" << qrand() << this->windowFlags();
 
             //use macro
             Log_D("click") << "log by pushButton"; //11:08:41.984 main-37068 D/click: log by pushButton  (file: LogTest line:45)
@@ -69,14 +67,14 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext& context, const QS
     switch (type) {
     case QtDebugMsg:
     case QtInfoMsg:
-        Log::d(tag) << log;
+        Log_D(tag) << log;
         break;
     case QtWarningMsg:
-        Log::w(tag) << log;
+        Log_W(tag) << log;
         break;
     case QtCriticalMsg:
     case QtFatalMsg:
-        Log::e(tag) << log;
+        Log_E(tag) << log;
         break;
     }
 }

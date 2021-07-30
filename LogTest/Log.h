@@ -18,6 +18,13 @@ class LogData;
 class Log : public QThread {
     Q_OBJECT
 
+    Log();
+    ~Log();
+
+    Q_DISABLE_COPY(Log);
+
+    static void createInstance();
+
 public:
     static void waitForConnect(const QHostAddress& address, int port);
     static void useQDebugOnly();
@@ -27,26 +34,18 @@ public:
     static void threadExit();
 
     class Message {
+        Q_DISABLE_COPY(Message);
+
     public:
-        Message(const QString& tag, LogLevel level, const char* fileName, int line)
-            : tag(tag), level(level), fileName(fileName), line(line) {
-            tagIsFile = false;
-        }
+        Message(const QString& tag, LogLevel level, const char* fileName, int line);
 
-        Message(LogLevel level, const char* fileName, int line)
-            : level(level), fileName(fileName), line(line) {
-            tagIsFile = true;
-        }
+        Message(LogLevel level, const char* fileName, int line);
 
-        Message(const QString& tag, LogLevel level)
-            : tag(tag), level(level) {
-        }
+        Message(const QString& tag, LogLevel level);
 
-        template<typename T>
-        Message& operator<<(const T& msg) {
-            postLog(messageToStr(msg));
-            return *this;
-        }
+        ~Message();
+
+        QDebug logger;
 
     private:
         QString tag, fileName;
@@ -54,44 +53,11 @@ public:
         LogLevel level;
         bool tagIsFile;
 
-    private:
-        void postLog(const QString& message);
-
-        template<typename T>
-        QString messageToStr(const T& msg) {
-            QString messageStr;
-            QDebug(&messageStr) << msg;
-            return messageStr;
-        }
-
-        template<>
-        QString messageToStr(const QString& message) {
-            return message;
-        }
+        QString cacheString;
     };
-
-    static Message d(const QString& tag) {
-        return Message(tag, LEVEL_DEBUG);
-    }
-
-    static Message w(const QString& tag) {
-        return Message(tag, LEVEL_WARNING);
-    }
-
-    static Message e(const QString& tag) {
-        return Message(tag, LEVEL_ERROR);
-    }
 
 signals:
     void newLogArrived(QPrivateSignal);
-
-private:
-    Log();
-    ~Log();
-
-    Q_DISABLE_COPY(Log);
-
-    static void createInstance();
 
 private:
     QHash<int64_t, QString> threadNames;
@@ -114,11 +80,11 @@ private:
     QByteArray getProcessInfo();
 };
 
-#define Log_D(tag)     Log::Message(tag, LEVEL_DEBUG, __FILE__, __LINE__)
-#define Log_d             Log::Message(LEVEL_DEBUG, __FILE__, __LINE__)
+#define Log_D(tag)     Log::Message(tag, LEVEL_DEBUG, __FILE__, __LINE__).logger
+#define Log_d             Log::Message(LEVEL_DEBUG, __FILE__, __LINE__).logger
 
-#define Log_W(tag)    Log::Message(tag, LEVEL_WARNING, __FILE__, __LINE__)
-#define Log_w             Log::Message(LEVEL_WARNING, __FILE__, __LINE__)
+#define Log_W(tag)    Log::Message(tag, LEVEL_WARNING, __FILE__, __LINE__).logger
+#define Log_w             Log::Message(LEVEL_WARNING, __FILE__, __LINE__).logger
 
-#define Log_E(tag)     Log::Message(tag, LEVEL_ERROR, __FILE__, __LINE__)
-#define Log_e             Log::Message(LEVEL_ERROR, __FILE__, __LINE__)
+#define Log_E(tag)     Log::Message(tag, LEVEL_ERROR, __FILE__, __LINE__).logger
+#define Log_e             Log::Message(LEVEL_ERROR, __FILE__, __LINE__).logger

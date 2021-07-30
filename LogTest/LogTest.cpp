@@ -14,13 +14,13 @@ public:
             int level = qrand() % 3;
             switch (level) {
             case 0:
-                Log::d("debug") << qrand();
+                Log_D("debug") << qrand();
                 break;
             case 1:
-                Log::w("warning") << qrand();
+                Log_W("warning") << qrand();
                 break;
             case 2:
-                Log::e("error") << qrand();
+                Log_E("error") << qrand();
                 break;
             }
             QThread::msleep(1000);
@@ -41,7 +41,7 @@ LogTest::LogTest() : QWidget(nullptr) {
     });
 
     connect(ui.pushButton_2, &QPushButton::clicked, [&] {
-        Log::d("click") << "log by pushbutton -> " + QString::number(qrand()) << this->windowFlags();
+        Log_D("click") << "log by pushbutton ->" << qrand() << this->windowFlags();
         Log_D("click") << "log by pushButton";
         Log_d << "log by pushButton";
     });
