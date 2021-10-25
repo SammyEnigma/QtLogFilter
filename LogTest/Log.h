@@ -14,7 +14,7 @@ enum LogLevel {
     LEVEL_ERROR,
 };
 
-class LogData;
+struct LogData;
 class Log : public QThread {
     Q_OBJECT
 
@@ -58,6 +58,7 @@ public:
 
 signals:
     void newLogArrived(QPrivateSignal);
+    void logReadyPost(QPrivateSignal);
 
 private:
     QHash<int64_t, QString> threadNames;

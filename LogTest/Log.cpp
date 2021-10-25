@@ -1,4 +1,4 @@
-#include "Log.h"
+﻿#include "Log.h"
 
 #include <qdatetime.h>
 #include <qeventloop.h>
@@ -6,11 +6,11 @@
 
 #include <qjsondocument.h>
 #include <qjsonobject.h>
-#include <qdatetime.h>
+#include <qtimer.h>
 
 #include <qdebug.h>
 
-#include <qapplication.h>
+#include <qcoreapplication.h>
 
 struct ConnectData {
     QString processName;
@@ -122,9 +122,14 @@ void Log::createInstance() {
 
 void Log::waitForConnect(const QHostAddress& address, int port) {
     createInstance();
+
+    QEventLoop loop;
+    connect(m_log, &Log::logReadyPost, &loop, &QEventLoop::quit);
     m_log->address = address;
     m_log->port = port;
     m_log->start();
+
+    loop.exec();
 }
 
 void Log::useQDebugOnly() {
@@ -146,12 +151,18 @@ void Log::run() {
     });
     client->connectToHost(address, port);
 
-    Q_ASSERT_X(client->waitForConnected(1000), "log", "cannot connect log filter!");
+    auto timer = new QTimer;
+    connect(timer, &QTimer::timeout, &connectLoop, &QEventLoop::quit);
+    timer->start(1000);
 
     connectLoop.exec();
+    delete timer;
 
     if (client->state() != QTcpSocket::ConnectedState) {
         onlyQDebugPrint = true;
+        delete client;
+        qWarning() << "cannot connect log filter!";
+        emit logReadyPost(QPrivateSignal());
         return;
     }
 
@@ -165,6 +176,8 @@ void Log::run() {
         client->write(message);
         client->waitForBytesWritten();
     }, Qt::QueuedConnection);
+
+    emit logReadyPost(QPrivateSignal());
 
     exec();
 
